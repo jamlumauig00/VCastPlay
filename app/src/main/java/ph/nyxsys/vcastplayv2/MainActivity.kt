@@ -2,8 +2,11 @@ package ph.nyxsys.vcastplayv2
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.media.Image
 import android.os.Bundle
 import android.util.Log
+import android.webkit.WebView
+import android.widget.ImageView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -22,8 +25,10 @@ import ph.nyxsys.vcastplayv2.Network.ApiClient
 import ph.nyxsys.vcastplayv2.Network.QBICShutdown
 import ph.nyxsys.vcastplayv2.Utils.DeviceUtil.getDeviceDetails
 import ph.nyxsys.vcastplayv2.Utils.DeviceUtil.saveToCache
+import ph.nyxsys.vcastplayv2.Webview.PollingManager
+import ph.nyxsys.vcastplayv2.Webview.VideoCacheManager
+import ph.nyxsys.vcastplayv2.Webview.WebViewManager
 import ph.nyxsys.vcastplayv2.databinding.ActivityMainBinding
-
 
 enum class SwitchAction {
     CLOSE, OPEN, SHUTDOWN, REOPEN, RESTART
@@ -36,6 +41,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private var player: ExoPlayer? = null
     private var deviceDetailsJob: Job? = null
+    private lateinit var webViewManager: WebViewManager
+    private lateinit var pollingManager: PollingManager
+    private lateinit var videoCacheManager: VideoCacheManager
+    private lateinit var webView: WebView
+    private lateinit var logoScreen: ImageView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,6 +54,10 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         sharedPrefs = SharedPrefsHelper(this)
+        webView = binding.webView
+        logoScreen = binding.logoScreen
+
+        webViewAction()
 
         permissionHelper.requestPermissions(
             arrayOf(
@@ -90,9 +104,18 @@ class MainActivity : AppCompatActivity() {
         if (cacheFile != null) {
             Log.d("CacheSave", "File saved: ${cacheFile.absolutePath}")
         }
-
     }
 
+    private fun webViewAction() {
+        webViewManager = WebViewManager(this, webView, logoScreen, "device1")
+        pollingManager = PollingManager(this, webView, logoScreen)
+        videoCacheManager = VideoCacheManager(this, sharedPrefs, webViewManager)
+
+        webViewManager.setupWebView()
+        webViewManager.loadUrl("file:///android_asset/index.html")
+
+        pollingManager.start()
+    }
 
     private fun handleSwitchAction(action: SwitchAction) {
         when (action) {
@@ -197,7 +220,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -207,4 +229,8 @@ class MainActivity : AppCompatActivity() {
         permissionHelper.handlePermissionsResult(requestCode, permissions, grantResults)
     }
 
+    override fun onDestroy() {
+        pollingManager.stop()
+        super.onDestroy()
+    }
 }
