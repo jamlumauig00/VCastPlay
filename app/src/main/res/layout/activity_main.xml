@@ -6,19 +6,39 @@
     android:layout_height="match_parent"
     android:layout_centerInParent="true"
     android:layout_gravity="center"
-    android:background="@drawable/bg"
-    android:gravity="end"
-    android:padding="24dp">
+    android:gravity="end">
+
+    <ImageView
+        android:id="@+id/logoScreen"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitCenter"
+        android:src="@drawable/bg" />
+
+    <TextView
+        android:id="@+id/deviceDetails"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:padding="10dp"
+        android:gravity="bottom" />
+
+    <WebView
+        android:id="@+id/webView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
 
     <LinearLayout
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
         android:gravity="end"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:padding="24dp">
 
         <Button
             android:id="@+id/reopen"
-            android:layout_width="wrap_content"
+            android:layout_width="50dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
             android:background="@android:drawable/star_on"
@@ -30,7 +50,7 @@
 
         <Button
             android:id="@+id/close"
-            android:layout_width="wrap_content"
+            android:layout_width="50dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
             android:background="@android:drawable/ic_menu_close_clear_cancel"
@@ -42,7 +62,7 @@
 
         <Button
             android:id="@+id/restart"
-            android:layout_width="wrap_content"
+            android:layout_width="50dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
             android:background="@drawable/restart"
@@ -55,7 +75,7 @@
 
         <Button
             android:id="@+id/shutdown"
-            android:layout_width="wrap_content"
+            android:layout_width="50dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
             android:background="@android:drawable/ic_lock_power_off"
@@ -66,9 +86,5 @@
             tools:ignore="ContentDescription" />
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/deviceDetails"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:gravity="bottom" />
+
 </RelativeLayout>
