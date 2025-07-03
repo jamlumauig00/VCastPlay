@@ -29,6 +29,11 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
+import com.google.android.gms.common.ConnectionResult
+import com.google.android.gms.common.GoogleApiAvailability
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -415,7 +420,7 @@ object DeviceUtil {
     }
 
 
-    suspend fun getDeviceDetails(context: Context, activity: FragmentActivity?): String {
+     suspend fun getDeviceDetails(context: Context, activity: FragmentActivity?): String {
         val ipAddress = getIPAddress()
         val cpuTemp = getCpuTemp()
         val getRamSize = getRamSize(context)
@@ -427,7 +432,7 @@ object DeviceUtil {
         val getNetworkStatus = getNetworkStatus(context)
         val isHdmiConnected = isHdmiConnectedQbic()
         val getDeviceUUID = getDeviceUUID(context)
-        val location = startNetworkLocationUpdates(context)
+        val location = getLocationFromIpWho()
 
         return """
         Status: $getNetworkStatus
@@ -457,30 +462,28 @@ object DeviceUtil {
             null
         }
     }
+
+
     @SuppressLint("MissingPermission")
-    private fun startNetworkLocationUpdates(context: Context) {
+    fun startNetworkLocationUpdates(context: Context) {
         val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
 
-        val provider = LocationManager.NETWORK_PROVIDER
-
-        if (!locationManager.isProviderEnabled(provider)) {
+        if (!locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
             Log.e("QbicLocation", "NETWORK_PROVIDER is disabled")
             return
         }
 
         locationManager.requestLocationUpdates(
-            provider,
-            10_000L, // 10 sec
+            LocationManager.NETWORK_PROVIDER,
+            10_000L, // every 10 sec
             0f,
             object : LocationListener {
                 override fun onLocationChanged(location: Location) {
                     val lat = location.latitude
                     val lon = location.longitude
                     Log.d("QbicLocation", "Lat: $lat, Lon: $lon")
-                    // Update UI or send to server here
+                    // save or display location
                 }
-
-                @Deprecated("Deprecated in Java")
                 override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
                 override fun onProviderEnabled(provider: String) {}
                 override fun onProviderDisabled(provider: String) {}
@@ -489,7 +492,7 @@ object DeviceUtil {
     }
 
 
-    suspend fun getLocationFromIpWho(): String? = withContext(Dispatchers.IO) {
+    private suspend fun getLocationFromIpWho(): String = withContext(Dispatchers.IO) {
         try {
             val url = URL("https://ipwho.is/")
             val connection = url.openConnection() as HttpsURLConnection
@@ -516,55 +519,18 @@ object DeviceUtil {
             val country = json.optString("country")
             val latitude = json.optDouble("latitude")
             val longitude = json.optDouble("longitude")
-
-            """
-            City: $city
+          /*  City: $city
             Region: $region
             Country: $country
             Latitude: $latitude
-            Longitude: $longitude
-        """.trimIndent()
+            Longitude: $longitude*/
+
+            """ $city, $region, $country """.trimIndent()
 
         } catch (e: Exception) {
             Log.e("IPWHO", "Exception: ${e.message}", e)
             "Location unavailable"
         }
     }
-
-    private fun fetchLocation() {
-        val url = "https://us-central1-kchatflutter.cloudfunctions.net/getLocationOnce"
-
-        Thread {
-            try {
-                val connection = URL(url).openConnection() as HttpURLConnection
-                connection.requestMethod = "GET"
-
-                val response = connection.inputStream.bufferedReader().use { it.readText() }
-
-                val json = JSONObject(response)
-
-                val city = json.optString("city", "N/A")
-                val region = json.optString("region", "N/A")
-                val country = json.optString("country", "N/A")
-                val latitude = json.optDouble("lat", 0.0)
-                val longitude = json.optDouble("lon", 0.0)
-
-                val result = """
-                City: $city
-                Region: $region
-                Country: $country
-                Latitude: $latitude
-                Longitude: $longitude
-            """.trimIndent()
-
-                Log.d("GeoLocation", "✅ $result")
-            } catch (e: Exception) {
-                Log.e("GeoLocation", "❌ Error: ${e.message}", e)
-            }
-        }.start()
-    }
-
-
-
 }
 

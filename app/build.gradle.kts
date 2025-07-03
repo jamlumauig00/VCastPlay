@@ -74,4 +74,8 @@ dependencies {
     //For Location
     implementation(libs.play.services.location)
 
+    //For Images
+    implementation(libs.glide)
+
+
 }

@@ -4,47 +4,42 @@ import android.content.Context
 import android.util.Log
 import ph.nyxsys.vcastplayv2.Helper.SharedPrefsHelper
 import java.io.File
-import java.io.FileOutputStream
-import java.io.InputStream
-import java.net.URL
 
 class VideoCacheManager(
     private val context: Context,
-    private val sharedPrefsHelper: SharedPrefsHelper,
+    private val sharedPrefs: SharedPrefsHelper,
     private val webViewManager: WebViewManager
 ) {
-    fun downloadVideo(url: String) {
-        Thread {
-            try {
-                val fileName = url.substring(url.lastIndexOf('/') + 1)
-                val videoFile = File(context.filesDir, fileName)
+    fun downloadVideo(
+        url: String,
+        onProgress: (Int) -> Unit,
+        onComplete: (File) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val downloader = VideoCacheDownloader(context)
+        downloader.downloadVideo(
+            url = url,
+            onProgress = onProgress,
+            onComplete = onComplete,
+            onError = onError
+        )
+    }
 
-                if (videoFile.exists()) {
-                    Log.d("Download", "Video already cached: ${videoFile.path}")
-                    webViewManager.loadVideo("file://${videoFile.path}")
-                    return@Thread
-                }
+    fun downloadIfNeeded(
+        url: String,
+        onProgress: (Int) -> Unit,
+        onComplete: (File) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val fileName = url.substring(url.lastIndexOf('/') + 1)
+        val cachedFile = File(context.filesDir, fileName)
 
-                val urlConnection = URL(url).openConnection()
-                val inputStream: InputStream = urlConnection.getInputStream()
-                val outputStream = FileOutputStream(videoFile)
-
-                val buffer = ByteArray(4096)
-                var bytesRead: Int
-                while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                    outputStream.write(buffer, 0, bytesRead)
-                }
-
-                outputStream.close()
-                inputStream.close()
-
-                Log.d("Download", "Download complete.")
-                sharedPrefsHelper.setLastPlayed(url)
-                webViewManager.loadVideo("file://${videoFile.path}")
-            } catch (e: Exception) {
-                Log.e("DownloadError", "Failed: ${e.message}")
-                webViewManager.showLogoScreen()
-            }
-        }.start()
+        if (cachedFile.exists()) {
+            Log.d("VideoCacheManager", "Already cached: ${cachedFile.absolutePath}")
+            onComplete(cachedFile)
+        } else {
+            downloadVideo(url, onProgress, onComplete, onError)
+        }
     }
 }
+
