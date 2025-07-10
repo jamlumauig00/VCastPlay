@@ -21,6 +21,7 @@ import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.os.StatFs
 import android.provider.Settings
 import android.util.Log
@@ -60,6 +61,7 @@ object DeviceUtil {
     private val LETTER_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray()
     private val NUMBER_CHARS = "0123456789".toCharArray()
     private var cachedDeviceId: String? = null
+    private lateinit var displayManager: DisplayManager
 
     fun playAudio(context: Context, name: String, mediaPlayerList: ArrayList<MediaPlayer>) {
         val descriptor = context.assets.openFd(name)
@@ -138,6 +140,17 @@ object DeviceUtil {
             30.0f
         }
     }
+
+
+
+    fun getDisplayStatus(context: Context): Boolean {
+        val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager ?: return false
+        val displays = displayManager.displays
+
+        // Return true if there's any secondary display aside from the default
+        return displays.any { it.displayId != Display.DEFAULT_DISPLAY }
+    }
+
 
     private fun formatSize(bytes: Long): String {
         var size = bytes
@@ -277,7 +290,7 @@ object DeviceUtil {
                 }
 
                 else -> Build.SERIAL
-            }?.takeIf { it.isNotBlank() } ?: getDeviceId()
+            }?.takeIf { it.isNotBlank() } ?: getDeviceId(context)
 
             if (stored.isNullOrEmpty()) {
                 storeInSharedPreferences(context, serial, "first_time_store")
@@ -285,28 +298,28 @@ object DeviceUtil {
             }
 
             if (stored != serial) {
-                writeSerialNumberToFile(stored)
+                writeSerialNumberToFile(stored, context)
                 return stored
             }
 
             stored
         } catch (e: Exception) {
             //Log.e("getBuildSerial", "Error: ${e}", e)
-            sharedPrefs.getString("build_serial", null) ?: getDeviceId().also {
+            sharedPrefs.getString("build_serial", null) ?: getDeviceId(context).also {
                 storeInSharedPreferences(context, it, "exception_fallback")
             }
         }
     }
 
-    private fun getDeviceId(): String {
+    private fun getDeviceId(context: Context): String {
         cachedDeviceId?.let { return it }
-        val stored = readSerialNumberFromFile()
+        val stored = readSerialNumberFromFile(context)
         if (stored != null) {
             cachedDeviceId = stored
             return stored
         }
         val newId = "NYX${generateRandomId()}"
-        writeSerialNumberToFile(newId)
+        writeSerialNumberToFile(newId, context)
         cachedDeviceId = newId
         return newId
     }
@@ -324,20 +337,29 @@ object DeviceUtil {
             .putString("build_serial", value).apply()
     }
 
-    private fun writeSerialNumberToFile(serialNumber: String) {
-        getSerialNumberFilePath().writeText("serialNumber = \"$serialNumber\"")
+    private fun writeSerialNumberToFile(serialNumber: String, context: Context) {
+        getSerialNumberFilePath(context).writeText("serialNumber = \"$serialNumber\"")
     }
 
-    private fun readSerialNumberFromFile(): String? {
-        val file = getSerialNumberFilePath()
-        return if (file.exists()) {
-            file.readText().substringAfter("serialNumber = \"").substringBefore("\"")
-        } else null
+    private fun readSerialNumberFromFile(context: Context): String? {
+        val file = getSerialNumberFilePath(context)
+        return try {
+            if (file.exists()) {
+                file.readText()
+                    .substringAfter("serialNumber = \"")
+                    .substringBefore("\"")
+            } else null
+        } catch (e: Exception) {
+            Log.e("DeviceUtil", "Failed to read serial number", e)
+            null
+        }
     }
 
-    private fun getSerialNumberFilePath(): File {
-        return File("/storage/emulated/0/", "SerialNumber.txt")
+    private fun getSerialNumberFilePath(context: Context): File {
+        return File(context.getExternalFilesDir(null), "SerialNumber.txt")
     }
+
+
 
     fun getInternalStorageInfo(): Pair<Long, Long> {
         val stat = StatFs(Environment.getDataDirectory().path)
@@ -374,7 +396,7 @@ object DeviceUtil {
         }
     }
 
-    fun getDisplayStatus(context: Context): String {
+    fun getDisplayStatus2(context: Context): String {
         val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
         val displays = displayManager.displays
         return displays.joinToString("\n") { display ->
@@ -398,6 +420,31 @@ object DeviceUtil {
             false
         }
     }
+
+    fun areAnyDisplaysOn(context: Context): Boolean {
+        val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager ?: return false
+        Log.e("areAnyDisplaysOn", "${displayManager.displays.any { it.state == Display.STATE_ON }}")
+
+        return displayManager.displays.any { it.state == Display.STATE_ON }
+    }
+
+    fun isMonitorSleeping(context: Context): Boolean {
+        val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+
+        val isScreenOff = powerManager?.isInteractive == false
+        val display = displayManager?.getDisplay(Display.DEFAULT_DISPLAY)
+
+        val isDisplayAsleep = display?.state != Display.STATE_ON
+            Log.d("Monitor", "${isScreenOff || isDisplayAsleep}")
+
+
+
+        return isScreenOff || isDisplayAsleep
+    }
+
+
+
 
     fun getOSInfo(): String {
         val versionName = Build.VERSION.RELEASE ?: "Unknown"
@@ -428,8 +475,9 @@ object DeviceUtil {
         val getDeviceSerial = getBuildSerial(context)
         val (total, available) = getInternalStorageInfo()
         val osInfoText = getOSInfo()
-        val getDisplayStatus = getDisplayStatus(context)
-        val getNetworkStatus = getNetworkStatus(context)
+        val getDisplayStatus = isMonitorSleeping(context)
+
+         val getNetworkStatus = getNetworkStatus(context)
         val isHdmiConnected = isHdmiConnectedQbic()
         val getDeviceUUID = getDeviceUUID(context)
         val location = getLocationFromIpWho()
@@ -532,5 +580,7 @@ object DeviceUtil {
             "Location unavailable"
         }
     }
+
+
 }
 

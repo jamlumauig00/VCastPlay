@@ -77,5 +77,13 @@ dependencies {
     //For Images
     implementation(libs.glide)
 
+    //for lottie
+    implementation(libs.lottie.compose)
+   // implementation(libs.dotlottie.android)
+
+
+
+
+
 
 }

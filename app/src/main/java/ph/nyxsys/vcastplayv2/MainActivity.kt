@@ -45,8 +45,8 @@ import ph.nyxsys.vcastplayv2.Utils.DeviceUtil.getDeviceDetails
 import ph.nyxsys.vcastplayv2.Utils.DeviceUtil.saveToCache
 import ph.nyxsys.vcastplayv2.Utils.ImmersiveUtil
 import ph.nyxsys.vcastplayv2.Utils.NetworkUtils
+import ph.nyxsys.vcastplayv2.Webview.MediaCacheManager
 import ph.nyxsys.vcastplayv2.Webview.PollingManager
-import ph.nyxsys.vcastplayv2.Webview.VideoCacheManager
 import ph.nyxsys.vcastplayv2.Webview.WebViewManager
 import ph.nyxsys.vcastplayv2.databinding.ActivityMainBinding
 import ph.nyxsys.vcastplayv2.databinding.LayoutCustomSnackbarBinding
@@ -64,14 +64,16 @@ class MainActivity : AppCompatActivity() {
     private var deviceDetailsJob: Job? = null
     private lateinit var webViewManager: WebViewManager
     private lateinit var pollingManager: PollingManager
-    private lateinit var videoCacheManager: VideoCacheManager
+    private lateinit var mediaCacheManager: MediaCacheManager
     private lateinit var webView: WebView
     private lateinit var logoScreen: ImageView
 
-  //  private var doubleBackToExitPressedOnce = false
-   // private lateinit var gestureDetector: GestureDetector
+    //  private var doubleBackToExitPressedOnce = false
+    private lateinit var gestureDetector: GestureDetector
 
     private var lastTapTime = 0L
+
+    private var snackbarPopup: PopupWindow? = null
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,16 +97,18 @@ class MainActivity : AppCompatActivity() {
             ),
             object : PermissionHelper.PermissionCallback {
                 override fun onPermissionGranted() {
-                    Toast.makeText(this@MainActivity, "All permissions granted", Toast.LENGTH_SHORT)
-                        .show()
+                    Log.d("permissions", "All permissions granted")
+
+                    //Toast.makeText(this@MainActivity, "All permissions granted", Toast.LENGTH_SHORT).show()
                 }
 
                 override fun onPermissionDenied(deniedPermissions: List<String>) {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Permissions denied: $deniedPermissions",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    Log.d("permissions", "Permissions denied: $deniedPermissions")
+                    /* Toast.makeText(
+                         this@MainActivity,
+                         "Permissions denied: $deniedPermissions",
+                         Toast.LENGTH_SHORT
+                     ).show()*/
                 }
             }
         )
@@ -135,18 +139,18 @@ class MainActivity : AppCompatActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
 
-        /*gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+        gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onDoubleTap(e: MotionEvent): Boolean {
-                showExitSnackbar()
+                showExitSnackBar()
                 return true
             }
-        })*/
+        })
     }
 
     private fun webViewAction() {
         webViewManager = WebViewManager(this, webView, logoScreen, "device1")
         pollingManager = PollingManager(this, webView, logoScreen)
-        videoCacheManager = VideoCacheManager(this, sharedPrefs, webViewManager)
+        mediaCacheManager = MediaCacheManager(this)
 
         webViewManager.setupWebView()
 
@@ -161,64 +165,57 @@ class MainActivity : AppCompatActivity() {
         }
 
 
-      //  webViewManager.loadUrl("file:///android_asset/index.html")
+        //  webViewManager.loadUrl("file:///android_asset/index.html")
         pollingManager.start()
     }
 
     fun setVideoUrl(url: String) {
-        if (!url.endsWith(".mp4", ignoreCase = true) &&
-            !url.endsWith(".webm", ignoreCase = true) &&
-            !url.endsWith(".ogg", ignoreCase = true)) {
-            Log.d("Download", "Skipping non-video URL: $url")
-            return
-        }
+        Log.d("Download", url)
 
-        videoCacheManager.downloadIfNeeded(
+        mediaCacheManager.downloadIfNeeded(
             url = url,
-            onProgress = { progress ->
-                Log.d("Download", "Progress: $progress%")
-            },
-            onComplete = { file ->
-                Log.d("Download", "Cached at: ${file.absolutePath}")
-            },
-            onError = { error ->
-                Log.e("Download", "Error: ${error.message}")
-            }
+            onProgress = { progress -> Log.d("MediaProgress", "$progress% downloaded") },
+            onComplete = { file -> Log.d("MediaComplete", "Saved to ${file.absolutePath}") },
+            onError = { error -> Log.e("MediaError", error.toString()) }
         )
     }
-    private fun showExitSnackbar() {
-        Log.d("Snackbar", "Showing exit snackbar...")
+
+    private fun showExitSnackBar() {
+        if (snackbarPopup?.isShowing == true) return
 
         val binding = LayoutCustomSnackbarBinding.inflate(LayoutInflater.from(this))
 
-        val popup = PopupWindow(
+        snackbarPopup = PopupWindow(
             binding.root,
             LinearLayout.LayoutParams.MATCH_PARENT,
             LinearLayout.LayoutParams.WRAP_CONTENT,
             true
         )
 
-        popup.isClippingEnabled = false
-        popup.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-        popup.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        popup.animationStyle = android.R.style.Animation_Toast
+        snackbarPopup?.apply {
+            isClippingEnabled = false
+            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            animationStyle = android.R.style.Animation_Toast
 
-        binding.snackbarAction.setOnClickListener {
-            Log.d("Snackbar", "Exit button clicked. Exiting app.")
-            //PlayerView.playerIsPlaying = false
-            popup.dismiss()
-            finish()
-        }
-
-        popup.showAtLocation(findViewById(android.R.id.content), Gravity.BOTTOM, 0, 0)
-
-        binding.root.postDelayed({
-            if (popup.isShowing) {
-                Log.d("Snackbar", "Snackbar auto-dismissed after 3 seconds.")
-                popup.dismiss()
+            binding.snackbarAction.setOnClickListener {
+                Log.d("Snackbar", "Exit button clicked. Exiting app.")
+                dismiss()
+                Log.d("Snackbar", "Calling finish() now...")
+                //binding.finish()
             }
-        }, 3000)
+
+            showAtLocation(findViewById(android.R.id.content), Gravity.BOTTOM, 0, 0)
+
+            binding.root.postDelayed({
+                if (isShowing) {
+                    Log.d("Snackbar", "Snackbar auto-dismissed after 3 seconds.")
+                    dismiss()
+                }
+            }, 3000)
+        }
     }
+
 
     private fun handleSwitchAction(action: SwitchAction) {
         when (action) {
@@ -229,7 +226,6 @@ class MainActivity : AppCompatActivity() {
             SwitchAction.RESTART -> triggerReboot()
         }
     }
-
 
 
     @SuppressLint("CheckResult")
@@ -325,7 +321,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 1001 && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             permissionHelper.handlePermissionsResult(requestCode, permissions, grantResults)
@@ -354,13 +354,12 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.action == MotionEvent.ACTION_DOWN) {
             val currentTime = System.currentTimeMillis()
             if (currentTime - lastTapTime < 300) {
                 Log.d("DoubleTap", "Double-tap detected. Showing exit snackbar.")
-                showExitSnackbar()
+                showExitSnackBar()
             } else {
                 Log.d("DoubleTap", "Single tap detected. Waiting for double tap.")
             }
@@ -368,7 +367,4 @@ class MainActivity : AppCompatActivity() {
         }
         return super.onTouchEvent(event)
     }
-
-
-
 }

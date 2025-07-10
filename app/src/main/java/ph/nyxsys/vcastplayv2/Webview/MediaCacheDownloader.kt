@@ -7,10 +7,10 @@ import java.io.FileOutputStream
 import java.io.InputStream
 import java.net.URL
 
-class VideoCacheDownloader(
+class MediaCacheDownloader(
     private val context: Context
 ) {
-    fun downloadVideo(
+    fun downloadFile(
         url: String,
         onProgress: (Int) -> Unit,
         onComplete: (File) -> Unit,
@@ -18,20 +18,20 @@ class VideoCacheDownloader(
     ) {
         Thread {
             try {
-                val fileName = url.substring(url.lastIndexOf('/') + 1)
-                val videoFile = File(context.filesDir, fileName)
+                val fileName = url.substringAfterLast('/')
+                val mediaFile = File(context.filesDir, fileName)
 
-                if (videoFile.exists()) {
-                    Log.d("Download", "Video already cached: ${videoFile.path}")
-                    onComplete(videoFile)
+                if (mediaFile.exists()) {
+                    Log.d("MediaDownload", "File already cached: ${mediaFile.path}")
+                    onComplete(mediaFile)
                     return@Thread
                 }
 
-                Log.d("Download", "Downloading video from: $url")
+                Log.d("MediaDownload", "Downloading file from: $url")
                 val urlConnection = URL(url).openConnection()
                 val totalSize = urlConnection.contentLength
                 val inputStream: InputStream = urlConnection.getInputStream()
-                val outputStream = FileOutputStream(videoFile)
+                val outputStream = FileOutputStream(mediaFile)
 
                 val buffer = ByteArray(8192)
                 var bytesRead: Int
@@ -41,7 +41,7 @@ class VideoCacheDownloader(
                     outputStream.write(buffer, 0, bytesRead)
                     downloaded += bytesRead
                     val progress = if (totalSize > 0) (downloaded * 100 / totalSize) else -1
-                    Log.d("DownloadProgress", "Downloaded $downloaded / $totalSize bytes ($progress%)")
+                    Log.d("MediaProgress", "Downloaded $downloaded / $totalSize bytes ($progress%)")
                     onProgress(progress)
                 }
 
@@ -49,10 +49,10 @@ class VideoCacheDownloader(
                 outputStream.close()
                 inputStream.close()
 
-                Log.d("Download", "Download complete: ${videoFile.absolutePath}")
-                onComplete(videoFile)
+                Log.d("MediaDownload", "Download complete: ${mediaFile.absolutePath}")
+                onComplete(mediaFile)
             } catch (e: Exception) {
-                Log.e("DownloadError", "Failed: ${e.message}")
+                Log.e("MediaDownloadError", "Failed: ${e.message}", e)
                 onError(e)
             }
         }.start()
