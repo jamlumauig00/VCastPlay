@@ -28,16 +28,26 @@ class PollingManager(
         handler.removeCallbacksAndMessages(null)
     }
 
+    private var wasOnline = NetworkUtils.isInternetAvailable(context)
+
     private val pollRunnable = object : Runnable {
         override fun run() {
-            if (!NetworkUtils.isInternetAvailable(context)) {
+            val isOnline = NetworkUtils.isInternetAvailable(context)
+
+            if (!isOnline) {
                 logoScreen.visibility = View.VISIBLE
                 webView.visibility = View.GONE
             } else {
-                webView.visibility = View.VISIBLE
+                if (!wasOnline) {
+                    webView.reload()
+                }
                 logoScreen.visibility = View.GONE
+                webView.visibility = View.VISIBLE
             }
+
+            wasOnline = isOnline
             handler.postDelayed(this, interval)
         }
     }
+
 }

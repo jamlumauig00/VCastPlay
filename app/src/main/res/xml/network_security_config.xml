@@ -8,4 +8,9 @@
         <domain includeSubdomains="true">ip-api.com</domain>
     </domain-config>
 
+
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">http://172.29.80.1:4200/</domain>
+    </domain-config>
+
 </network-security-config>

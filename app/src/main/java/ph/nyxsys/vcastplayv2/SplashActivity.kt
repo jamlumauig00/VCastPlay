@@ -23,14 +23,13 @@ class SplashActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivitySplashBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        window.setBackgroundDrawableResource(android.R.color.black) // or transparent
 
         window.setFlags(
             WindowManager.LayoutParams.FLAG_FULLSCREEN,
             WindowManager.LayoutParams.FLAG_FULLSCREEN
         )
         supportActionBar?.hide()
-
-
 
         val videoUri = Uri.parse("android.resource://${packageName}/${R.raw.vcast_high_res2}")
         binding.splashGif.setVideoURI(videoUri)
@@ -43,11 +42,5 @@ class SplashActivity : AppCompatActivity() {
         binding.splashGif.setOnPreparedListener { it.isLooping = false }
         binding.splashGif.start()
 
-
-        // Delay transition
-       /* Handler(Looper.getMainLooper()).postDelayed({
-            startActivity(Intent(this, MainActivity::class.java))
-            finish()
-        }, 4000)*/
     }
 }

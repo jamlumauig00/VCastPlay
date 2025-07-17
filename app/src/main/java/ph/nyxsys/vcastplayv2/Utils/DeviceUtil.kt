@@ -62,6 +62,7 @@ object DeviceUtil {
     private val NUMBER_CHARS = "0123456789".toCharArray()
     private var cachedDeviceId: String? = null
     private lateinit var displayManager: DisplayManager
+    var playerCode: String? = null
 
     fun playAudio(context: Context, name: String, mediaPlayerList: ArrayList<MediaPlayer>) {
         val descriptor = context.assets.openFd(name)
@@ -119,6 +120,10 @@ object DeviceUtil {
         }
     }
 
+    /*    fun getPlayerCode(): String {
+            return playerCode ?: "N/A"
+        }*/
+
     fun getCpuTemp(): Float {
         val cpuFiles = arrayOf(
             "cat sys/class/thermal/thermal_zone0/temp",
@@ -142,9 +147,9 @@ object DeviceUtil {
     }
 
 
-
     fun getDisplayStatus(context: Context): Boolean {
-        val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager ?: return false
+        val displayManager =
+            context.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager ?: return false
         val displays = displayManager.displays
 
         // Return true if there's any secondary display aside from the default
@@ -360,7 +365,6 @@ object DeviceUtil {
     }
 
 
-
     fun getInternalStorageInfo(): Pair<Long, Long> {
         val stat = StatFs(Environment.getDataDirectory().path)
         val blockSize = stat.blockSizeLong
@@ -422,7 +426,8 @@ object DeviceUtil {
     }
 
     fun areAnyDisplaysOn(context: Context): Boolean {
-        val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager ?: return false
+        val displayManager =
+            context.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager ?: return false
         Log.e("areAnyDisplaysOn", "${displayManager.displays.any { it.state == Display.STATE_ON }}")
 
         return displayManager.displays.any { it.state == Display.STATE_ON }
@@ -436,14 +441,12 @@ object DeviceUtil {
         val display = displayManager?.getDisplay(Display.DEFAULT_DISPLAY)
 
         val isDisplayAsleep = display?.state != Display.STATE_ON
-            Log.d("Monitor", "${isScreenOff || isDisplayAsleep}")
+        Log.d("Monitor", "${isScreenOff || isDisplayAsleep}")
 
 
 
         return isScreenOff || isDisplayAsleep
     }
-
-
 
 
     fun getOSInfo(): String {
@@ -467,7 +470,7 @@ object DeviceUtil {
     }
 
 
-     suspend fun getDeviceDetails(context: Context, activity: FragmentActivity?): String {
+     fun getDeviceDetails(context: Context, activity: FragmentActivity?): String {
         val ipAddress = getIPAddress()
         val cpuTemp = getCpuTemp()
         val getRamSize = getRamSize(context)
@@ -477,12 +480,14 @@ object DeviceUtil {
         val osInfoText = getOSInfo()
         val getDisplayStatus = isMonitorSleeping(context)
 
-         val getNetworkStatus = getNetworkStatus(context)
+        val getNetworkStatus = getNetworkStatus(context)
         val isHdmiConnected = isHdmiConnectedQbic()
         val getDeviceUUID = getDeviceUUID(context)
-        val location = getLocationFromIpWho()
+        val getPlayercode = playerCode ?: "N/A"
+        //val location = getLocationFromIpWho()
 
         return """
+        Player Code: $getPlayercode
         Status: $getNetworkStatus
         IP Address: $ipAddress
         CPU Temp: $cpuTemp
@@ -492,7 +497,7 @@ object DeviceUtil {
         Storage: Total = ${formatStorageSize(total)}, Available = ${formatStorageSize(available)}
         $osInfoText
         UUID: $getDeviceUUID
-        Location: $location
+        Location: $
         Display Status: $getDisplayStatus
         HDMI Status: $isHdmiConnected
     """.trimIndent()
@@ -532,6 +537,7 @@ object DeviceUtil {
                     Log.d("QbicLocation", "Lat: $lat, Lon: $lon")
                     // save or display location
                 }
+
                 override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
                 override fun onProviderEnabled(provider: String) {}
                 override fun onProviderDisabled(provider: String) {}
@@ -567,11 +573,11 @@ object DeviceUtil {
             val country = json.optString("country")
             val latitude = json.optDouble("latitude")
             val longitude = json.optDouble("longitude")
-          /*  City: $city
-            Region: $region
-            Country: $country
-            Latitude: $latitude
-            Longitude: $longitude*/
+            /*  City: $city
+              Region: $region
+              Country: $country
+              Latitude: $latitude
+              Longitude: $longitude*/
 
             """ $city, $region, $country """.trimIndent()
 

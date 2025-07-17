@@ -3,7 +3,6 @@
     android:id="@+id/snackbarRoot"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="16dp"
     android:orientation="horizontal"
     android:background="#CC000000"
     android:gravity="center_vertical"
@@ -13,6 +12,8 @@
         android:id="@+id/snackbarMessage"
         android:layout_width="0dp"
         android:layout_weight="1"
+        android:padding="16dp"
+
         android:layout_height="wrap_content"
         android:text="Do you want to exit Player?"
         android:textColor="#FFFFFF"
@@ -21,8 +22,10 @@
     <Button
         android:id="@+id/snackbarAction"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:text="Yes"
         android:textColor="#ffb915"
+        android:clickable="true"
+        android:focusable="true"
         android:background="@android:color/transparent" />
 </LinearLayout>

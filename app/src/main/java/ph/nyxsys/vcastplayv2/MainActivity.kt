@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.PixelFormat
 import android.graphics.drawable.ColorDrawable
 import android.media.Image
 import android.os.Build
@@ -50,6 +51,8 @@ import ph.nyxsys.vcastplayv2.Webview.PollingManager
 import ph.nyxsys.vcastplayv2.Webview.WebViewManager
 import ph.nyxsys.vcastplayv2.databinding.ActivityMainBinding
 import ph.nyxsys.vcastplayv2.databinding.LayoutCustomSnackbarBinding
+import java.io.File
+import java.io.FileOutputStream
 
 enum class SwitchAction {
     CLOSE, OPEN, SHUTDOWN, REOPEN, RESTART
@@ -85,6 +88,7 @@ class MainActivity : AppCompatActivity() {
         sharedPrefs = SharedPrefsHelper(this)
         webView = binding.webView
         logoScreen = binding.logoScreen
+        //window.setFormat(PixelFormat.TRANSLUCENT)
 
         webViewAction()
 
@@ -147,27 +151,27 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     private fun webViewAction() {
-        webViewManager = WebViewManager(this, webView, logoScreen, "device1")
-        pollingManager = PollingManager(this, webView, logoScreen)
-        mediaCacheManager = MediaCacheManager(this)
+        webView.setBackgroundColor(Color.TRANSPARENT)
+        webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
 
-        webViewManager.setupWebView()
-
-        if (NetworkUtils.isInternetAvailable(this)) {
-            Log.d("WebView", "Internet available: loading remote URL")
-            webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
-            webViewManager.loadUrl("file:///android_asset/index.html")
-        } else {
-            Log.w("WebView", "No internet: loading local asset fallback")
-            webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
-            webViewManager.loadUrl("file:///android_asset/index.html")
+        webView.setOnTouchListener { _, event ->
+            gestureDetector.onTouchEvent(event)
+            false
         }
 
-
-        //  webViewManager.loadUrl("file:///android_asset/index.html")
-        pollingManager.start()
+        webViewManager = WebViewManager(
+            context = this,
+            webView = webView,
+            logoScreen = logoScreen,
+            deviceDetails = "D E V I C E  A N D R O I D" // replace as needed
+        )
+        webViewManager.setupWebView()
+        webViewManager.loadUrl("https://vcastplay-player.vercel.app/")
+        //webView.loadUrl("http://172.29.80.1:4200/")
     }
+
 
     fun setVideoUrl(url: String) {
         Log.d("Download", url)
@@ -193,29 +197,28 @@ class MainActivity : AppCompatActivity() {
         )
 
         snackbarPopup?.apply {
-            isClippingEnabled = false
+            isClippingEnabled = true
             softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             animationStyle = android.R.style.Animation_Toast
 
             binding.snackbarAction.setOnClickListener {
-                Log.d("Snackbar", "Exit button clicked. Exiting app.")
+                Log.d("showExitSnackBar", "Exit button clicked. Exiting app.")
                 dismiss()
-                Log.d("Snackbar", "Calling finish() now...")
-                //binding.finish()
+                Log.d("showExitSnackBar", "Calling finish() now...")
+                (this@MainActivity).finish()
             }
 
             showAtLocation(findViewById(android.R.id.content), Gravity.BOTTOM, 0, 0)
 
             binding.root.postDelayed({
                 if (isShowing) {
-                    Log.d("Snackbar", "Snackbar auto-dismissed after 3 seconds.")
+                    Log.d("showExitSnackBar", "showExitSnackBar auto-dismissed after 3 seconds.")
                     dismiss()
                 }
             }, 3000)
         }
     }
-
 
     private fun handleSwitchAction(action: SwitchAction) {
         when (action) {
@@ -226,7 +229,6 @@ class MainActivity : AppCompatActivity() {
             SwitchAction.RESTART -> triggerReboot()
         }
     }
-
 
     @SuppressLint("CheckResult")
     private fun shutdownDevice() {
@@ -333,9 +335,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        pollingManager.stop()
+        webView.destroy()  // Avoid memory leaks
         super.onDestroy()
     }
+
 
     override fun onResume() {
         super.onResume()
