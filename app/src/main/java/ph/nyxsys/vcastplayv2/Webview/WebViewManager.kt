@@ -21,65 +21,67 @@ import ph.nyxsys.vcastplayv2.Utils.NetworkUtils
 import java.io.File
 import java.net.URL
 
-
 class WebViewManager(
     private val context: Context,
     private val webView: WebView,
     private val logoScreen: ImageView,
     private val deviceDetails: String
 ) {
+
     @SuppressLint("SetJavaScriptEnabled")
     fun setupWebView() {
         webView.settings.apply {
-            cacheMode = WebSettings.LOAD_NO_CACHE
-            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-            domStorageEnabled = true
-            setSupportZoom(false)
             javaScriptEnabled = true
-            setSupportMultipleWindows(false)
+            domStorageEnabled = true
             databaseEnabled = true
             loadsImagesAutomatically = true
             mediaPlaybackRequiresUserGesture = false
             allowFileAccess = true
             allowContentAccess = true
             allowUniversalAccessFromFileURLs = true
-            useWideViewPort = true;
-            loadWithOverviewMode = true;
+            useWideViewPort = true
+            loadWithOverviewMode = true
+            setSupportZoom(false)
+            setSupportMultipleWindows(false)
+            cacheMode = WebSettings.LOAD_NO_CACHE
+            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
         }
+
         webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        webView.addJavascriptInterface(AndroidJavaScriptInterface(), "AndroidBridge")
 
-        val jsInterface = AndroidJavaScriptInterface()
-        webView.addJavascriptInterface(jsInterface, "AndroidBridge")
-
-        val chromeClient = WebChromeClientCustomPoster()
-        webView.setWebChromeClient(chromeClient)
-
-   /*     webView.webViewClient = object : WebViewClient() {
-            override fun Bitmap getDefault(){
-                try {
-                    return Bitmap.createBitmap(1,1, Bitmap.Config.ARGB_8888)
-                }catch (e:Exception){
-                    return super.defa
-                }
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onPermissionRequest(request: PermissionRequest?) {
+                request?.grant(request.resources)
             }
-*/
 
+            override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
+                Log.d(
+                    "WebViewConsole",
+                    "[${consoleMessage.messageLevel()}] ${consoleMessage.message()} " +
+                            "Line: ${consoleMessage.lineNumber()} Source: ${consoleMessage.sourceId()}"
+                )
 
+                if (consoleMessage.message() == "System has been initialized in ANDROID") {
+                    showWeb()
+                }
 
-            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?) =
-                false
+                return true
+            }
+        }
+
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?) = false
 
             override fun onReceivedError(
                 view: WebView?,
                 request: WebResourceRequest?,
                 error: WebResourceError?
             ) {
-                val description = error?.description ?: "Unknown error"
-                Log.e("WebViewError", "Error: $description")
-
+                Log.e("WebViewError", "Error: ${error?.description ?: "Unknown error"}")
                 showLogo()
                 view?.evaluateJavascript(
-                    "javascript:displayError('WebView load error: $description');",
+                    """javascript:displayError("WebView load error: ${error?.description}");""",
                     null
                 )
             }
@@ -87,6 +89,7 @@ class WebViewManager(
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 showLogo()
                 val safeDeviceDetails = JSONObject.quote(deviceDetails)
+
                 view?.evaluateJavascript("window.isAndroid = true;", null)
                 view?.evaluateJavascript("javascript:getDeviceDetails($safeDeviceDetails);", null)
 
@@ -101,18 +104,36 @@ class WebViewManager(
                     })();
                 """
                 view?.evaluateJavascript(localStorageDumpScript, null)
-
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 Log.d("WebView", "Page loaded: $url")
-                webView.visibility = View.VISIBLE
+                webView.visibility = VISIBLE
+                super.onPageFinished(view, url)
+                /*val removePosterJs = """
+                        (function() {
+                            const video = document.querySelector('video');
+                            if (video) {
+                                video.removeAttribute('poster');
+                                video.poster = "";
+                                video.style.backgroundImage = "none";
+                            }
+                    
+                            const posterOverlay = document.querySelector('.vjs-poster');
+                            if (posterOverlay) {
+                                posterOverlay.style.display = 'none';
+                                console.log("✅ vjs-poster hidden");
+                            } else {
+                                console.log("⚠️ vjs-poster not found");
+                            }
+                        })();
+                    """.trimIndent()
 
-                // Launch coroutine on main thread
+                    webView.evaluateJavascript(removePosterJs, null)*/
+
                 (context as? FragmentActivity)?.lifecycleScope?.launch {
-                    val deviceDetails =
-                        DeviceUtil.getDeviceDetails(context, context)
-                    val safeDeviceDetails = JSONObject.quote(deviceDetails) // escape special chars
+                    val updatedDetails = DeviceUtil.getDeviceDetails(context, context)
+                    val safeDeviceDetails = JSONObject.quote(updatedDetails)
 
                     val js = """
                         setTimeout(function() {
@@ -120,43 +141,14 @@ class WebViewManager(
                                 getDeviceDetails($safeDeviceDetails);
                             } else {
                                 console.warn("getDeviceDetails is not ready.");
-                            } 
+                            }
                         }, 0);
                     """.trimIndent()
 
                     view?.evaluateJavascript(js, null)
-
                     showWeb()
                 }
             }
-        }
-
-
-        webView.webChromeClient = object : WebChromeClient() {
-            /* override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                 if (newProgress == 100)
-             }*/
-
-            override fun onPermissionRequest(request: PermissionRequest?) {
-                request?.grant(request.resources)
-            }
-
-            override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
-                val message = consoleMessage.message()
-                Log.d("WebViewConsole", "[${consoleMessage.messageLevel()}] $message ${consoleMessage.lineNumber()}  ${consoleMessage.sourceId()}")
-
-                when (message) {
-                    "System has been initialized in ANDROID" -> {
-                        // ✅ Do something here
-                        Log.d("WebViewConsole", "System initialization confirmed")
-                        // e.g., start some app logic or call a function
-                        showWeb()
-                    }
-                }
-
-                return true
-            }
-
         }
     }
 
@@ -166,13 +158,11 @@ class WebViewManager(
         if (NetworkUtils.isInternetAvailable(context)) {
             webView.loadUrl(url)
             downloadHtmlPage(url, file) {
-                Log.d("WebViewManager", "Page downloaded and saved to offline.html")
+                Log.d("WebViewManager", "Page downloaded: $url to ${file.path}")
             }
         } else {
             if (file.exists()) {
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    webView.loadUrl("file://${file.absolutePath}")
-                }
+                webView.loadUrl("file://${file.absolutePath}")
             } else {
                 Log.e("WebViewManager", "Offline file not found.")
                 showLogo()
@@ -227,21 +217,16 @@ class WebViewManager(
             try {
                 val json = JSONObject(data)
                 val playerCode = json.optString("playerCode", "UNKNOWN")
-
                 Log.d("ParsedPlayerCode", playerCode)
-
-                // Save it for use anywhere
                 DeviceUtil.playerCode = playerCode
-
             } catch (e: Exception) {
-                Log.e("LocalStorageDump", "Error parsing localStorage JSON", e)
+                Log.e("LocalStorageDump", "Error parsing JSON", e)
             }
         }
 
-
         @JavascriptInterface
         fun sendCommand(data: String) {
-            Log.d("WebViewData", "Command received from web: $data")
+            Log.d("WebViewData", "Command from web: $data")
             if (data != "undefined") {
                 Toast.makeText(context, "From Web: $data", Toast.LENGTH_SHORT).show()
             }
