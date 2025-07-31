@@ -135,7 +135,7 @@ class WebViewManager(
                 """
                 view?.evaluateJavascript(localStorageDumpScript, null)
 
-                view?.evaluateJavascript("""
+              /*  view?.evaluateJavascript("""
                                 (function() {
                                 const request = indexedDB.open("Contents");
                                 request.onsuccess = function(event) {
@@ -157,7 +157,7 @@ class WebViewManager(
                             })();
                         """.trimIndent()) { value ->
                                             Log.d("IndexedDB", "Data: $value")
-                }
+                }*/
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -166,7 +166,7 @@ class WebViewManager(
                 // Ensure WebView is visible
                 webView.visibility = View.VISIBLE
 
-                view?.evaluateJavascript("""
+                /*view?.evaluateJavascript("""
                                 (function() {
                                 const request = indexedDB.open("Contents");
                                 request.onsuccess = function(event) {
@@ -188,7 +188,7 @@ class WebViewManager(
                             })();
                         """.trimIndent()) { value ->
                     Log.d("IndexedDB2", "Data: $value")
-                }
+                }*/
 
 
                 // Send device details again (optional fallback)
@@ -228,6 +228,17 @@ class WebViewManager(
             }
         }
     }
+
+    fun clearWebViewData(context: Context) {
+        // Clear all data for the embedded WebView
+        WebStorage.getInstance().deleteAllData()
+        CookieManager.getInstance().removeAllCookies(null)
+        CookieManager.getInstance().flush()
+        context.deleteDatabase("webview.db")
+        context.deleteDatabase("webviewCache.db")
+        context.cacheDir.deleteRecursively()
+    }
+
 
     private fun downloadHtmlPage(url: String, saveTo: File, onComplete: () -> Unit) {
         Thread {

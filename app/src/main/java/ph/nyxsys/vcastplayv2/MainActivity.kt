@@ -170,6 +170,7 @@ class MainActivity : AppCompatActivity() {
             deviceDetails = "D E V I C E  A N D R O I D" // replace as needed
         )
         webViewManager.setupWebView()
+        webViewManager.clearWebViewData(this)
         webViewManager.loadUrl("https://vcastplay-player.vercel.app/")
         //webView.loadUrl("http://172.29.80.1:4200/")
     }
