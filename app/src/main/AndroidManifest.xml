@@ -55,15 +55,20 @@
         android:requestLegacyExternalStorage="true"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-
         android:theme="@style/Theme.VCastPlay"
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
+<!--
+        <meta-data
+            android:name="android.support.customtabs.trusted.DEFAULT_URL"
+            android:value="https://vcastplay-player.vercel.app/" />-->
+
         <activity
             android:name=".SplashActivity"
             android:theme="@style/Theme.VCastPlay.NoActionBar.Transparent"
             android:exported="true">
             <intent-filter>
+
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
@@ -71,7 +76,29 @@
 
         <activity
             android:name=".MainActivity"
-            android:exported="true"/>
+            android:exported="true">
+
+
+         <!--   &lt;!&ndash; Intent filter for TWA verification &ndash;&gt;
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https"
+                    android:host="vcastplay-player.vercel.app"
+                    android:pathPrefix="/" />
+            </intent-filter>
+
+            &lt;!&ndash; Intent filter for receiving logs from PWA &ndash;&gt;
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="myapp"
+                    android:host="log" />
+            </intent-filter>-->
+        </activity>
+
     </application>
 
 </manifest>

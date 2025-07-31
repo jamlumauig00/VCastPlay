@@ -3,6 +3,9 @@ package ph.nyxsys.vcastplayv2.Webview
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
+import android.media.MediaCodecInfo
+import android.media.MediaCodecList
+import android.media.MediaFormat
 import android.util.Log
 import android.view.View
 import android.view.View.GONE
@@ -44,11 +47,37 @@ class WebViewManager(
             setSupportZoom(false)
             setSupportMultipleWindows(false)
             cacheMode = WebSettings.LOAD_NO_CACHE
-            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         }
+
+        WebView.setWebContentsDebuggingEnabled(true) // For remote debugging
+
+
+        logAvailableDecoders()
+        val format = MediaFormat.createVideoFormat("video/avc", 1280, 720)
+        format.setInteger(
+            MediaFormat.KEY_COLOR_FORMAT,
+            MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface
+        )
+        format.setInteger(MediaFormat.KEY_FRAME_RATE, 30)
+        format.setInteger(MediaFormat.KEY_BIT_RATE, 2000000)
+        format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
+
+        MediaCodecList(MediaCodecList.REGULAR_CODECS).findDecoderForFormat(format)
 
         webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
         webView.addJavascriptInterface(AndroidJavaScriptInterface(), "AndroidBridge")
+        webView.addJavascriptInterface(object {
+            @JavascriptInterface
+            fun resumePlayback() {
+                Log.d("JSInterface", "resumePlayback called")
+            }
+
+            @JavascriptInterface
+            fun getDeviceDetails(): String {
+                return "{ device: 'Android', code: '12345' }"
+            }
+        }, "Android")
 
         webView.webChromeClient = object : WebChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest?) {
@@ -71,7 +100,8 @@ class WebViewManager(
         }
 
         webView.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?) = false
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?) =
+                false
 
             override fun onReceivedError(
                 view: WebView?,
@@ -104,48 +134,77 @@ class WebViewManager(
                     })();
                 """
                 view?.evaluateJavascript(localStorageDumpScript, null)
+
+                view?.evaluateJavascript("""
+                                (function() {
+                                const request = indexedDB.open("Contents");
+                                request.onsuccess = function(event) {
+                                    const db = event.target.result;
+                                    const tx = db.transaction("items", "readonly");
+                                    const store = tx.objectStore("items");
+                                    const getAllRequest = store.getAll();
+                                    getAllRequest.onsuccess = function() {
+                                        const allItems = getAllRequest.result;
+                                        AndroidBridge.receiveData(JSON.stringify(allItems));
+                                    };
+                                    getAllRequest.onerror = function() {
+                                        AndroidBridge.receiveData("Failed to fetch items");
+                                    };
+                                };
+                                request.onerror = function() {
+                                    AndroidBridge.receiveData("Failed to open DB");
+                                };
+                            })();
+                        """.trimIndent()) { value ->
+                                            Log.d("IndexedDB", "Data: $value")
+                }
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
-                Log.d("WebView", "Page loaded: $url")
-                webView.visibility = VISIBLE
                 super.onPageFinished(view, url)
-                /*val removePosterJs = """
-                        (function() {
-                            const video = document.querySelector('video');
-                            if (video) {
-                                video.removeAttribute('poster');
-                                video.poster = "";
-                                video.style.backgroundImage = "none";
-                            }
-                    
-                            const posterOverlay = document.querySelector('.vjs-poster');
-                            if (posterOverlay) {
-                                posterOverlay.style.display = 'none';
-                                console.log("✅ vjs-poster hidden");
-                            } else {
-                                console.log("⚠️ vjs-poster not found");
-                            }
-                        })();
-                    """.trimIndent()
 
-                    webView.evaluateJavascript(removePosterJs, null)*/
+                // Ensure WebView is visible
+                webView.visibility = View.VISIBLE
 
+                view?.evaluateJavascript("""
+                                (function() {
+                                const request = indexedDB.open("Contents");
+                                request.onsuccess = function(event) {
+                                    const db = event.target.result;
+                                    const tx = db.transaction("items", "readonly");
+                                    const store = tx.objectStore("items");
+                                    const getAllRequest = store.getAll();
+                                    getAllRequest.onsuccess = function() {
+                                        const allItems = getAllRequest.result;
+                                        AndroidBridge.receiveData(JSON.stringify(allItems));
+                                    };
+                                    getAllRequest.onerror = function() {
+                                        AndroidBridge.receiveData("Failed to fetch items");
+                                    };
+                                };
+                                request.onerror = function() {
+                                    AndroidBridge.receiveData("Failed to open DB");
+                                };
+                            })();
+                        """.trimIndent()) { value ->
+                    Log.d("IndexedDB2", "Data: $value")
+                }
+
+
+                // Send device details again (optional fallback)
                 (context as? FragmentActivity)?.lifecycleScope?.launch {
                     val updatedDetails = DeviceUtil.getDeviceDetails(context, context)
                     val safeDeviceDetails = JSONObject.quote(updatedDetails)
 
-                    val js = """
-                        setTimeout(function() {
-                            if (typeof getDeviceDetails === 'function') {
-                                getDeviceDetails($safeDeviceDetails);
-                            } else {
-                                console.warn("getDeviceDetails is not ready.");
-                            }
-                        }, 0);
-                    """.trimIndent()
+                    val sendDeviceDetailsScript = """
+            setTimeout(function() {
+                if (typeof getDeviceDetails === 'function') {
+                    getDeviceDetails($safeDeviceDetails);
+                }
+            }, 0);
+        """.trimIndent()
 
-                    view?.evaluateJavascript(js, null)
+                    view?.evaluateJavascript(sendDeviceDetailsScript, null)
                     showWeb()
                 }
             }
@@ -195,6 +254,17 @@ class WebViewManager(
         }
     }
 
+
+    fun logAvailableDecoders() {
+        val codecList = MediaCodecList(MediaCodecList.ALL_CODECS).codecInfos
+        for (codec in codecList) {
+            if (!codec.isEncoder) {
+                Log.d("CodecCheck", "Name: ${codec.name}")
+            }
+        }
+    }
+
+
     fun showLogo() {
         logoScreen.visibility = VISIBLE
         webView.visibility = GONE
@@ -228,8 +298,7 @@ class WebViewManager(
         fun sendCommand(data: String) {
             Log.d("WebViewData", "Command from web: $data")
             if (data != "undefined") {
-                Toast.makeText(context, "From Web: $data", Toast.LENGTH_SHORT).show()
-            }
+                Log.e("sendCommand", "From Web: $data") }
         }
 
         @JavascriptInterface

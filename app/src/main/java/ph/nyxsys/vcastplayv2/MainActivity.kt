@@ -1,34 +1,31 @@
 package ph.nyxsys.vcastplayv2
 
 import android.annotation.SuppressLint
+import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
-import android.graphics.PixelFormat
 import android.graphics.drawable.ColorDrawable
-import android.media.Image
-import android.os.Build
+import android.net.Uri
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.GestureDetector
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
-import android.view.ViewGroup
 import android.view.WindowManager
-import android.webkit.WebSettings
 import android.webkit.WebView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.PopupWindow
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.browser.customtabs.CustomTabsClient
+import androidx.browser.customtabs.CustomTabsServiceConnection
+import androidx.browser.trusted.TrustedWebActivityIntentBuilder
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.exoplayer.ExoPlayer
-import com.google.android.material.snackbar.Snackbar
+import com.google.androidbrowserhelper.trusted.LauncherActivity
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.Dispatchers
@@ -41,22 +38,24 @@ import ph.nyxsys.vcastplayv2.Helper.PermissionHelper
 import ph.nyxsys.vcastplayv2.Helper.SharedPrefsHelper
 import ph.nyxsys.vcastplayv2.Network.ApiClient
 import ph.nyxsys.vcastplayv2.Network.QBICShutdown
-import ph.nyxsys.vcastplayv2.Utils.DeviceUtil
 import ph.nyxsys.vcastplayv2.Utils.DeviceUtil.getDeviceDetails
 import ph.nyxsys.vcastplayv2.Utils.DeviceUtil.saveToCache
 import ph.nyxsys.vcastplayv2.Utils.ImmersiveUtil
-import ph.nyxsys.vcastplayv2.Utils.NetworkUtils
 import ph.nyxsys.vcastplayv2.Webview.MediaCacheManager
 import ph.nyxsys.vcastplayv2.Webview.PollingManager
 import ph.nyxsys.vcastplayv2.Webview.WebViewManager
 import ph.nyxsys.vcastplayv2.databinding.ActivityMainBinding
 import ph.nyxsys.vcastplayv2.databinding.LayoutCustomSnackbarBinding
-import java.io.File
-import java.io.FileOutputStream
+import androidx.core.net.toUri
+import androidx.core.graphics.drawable.toDrawable
+import com.google.androidbrowserhelper.trusted.TwaLauncher
+import kotlinx.coroutines.CoroutineScope
+
 
 enum class SwitchAction {
     CLOSE, OPEN, SHUTDOWN, REOPEN, RESTART
 }
+class TwaLauncherActivity : LauncherActivity()
 
 class MainActivity : AppCompatActivity() {
     private val permissionHelper by lazy { PermissionHelper(this, 100) }
@@ -66,17 +65,15 @@ class MainActivity : AppCompatActivity() {
     private var player: ExoPlayer? = null
     private var deviceDetailsJob: Job? = null
     private lateinit var webViewManager: WebViewManager
-    private lateinit var pollingManager: PollingManager
     private lateinit var mediaCacheManager: MediaCacheManager
     private lateinit var webView: WebView
     private lateinit var logoScreen: ImageView
 
     //  private var doubleBackToExitPressedOnce = false
     private lateinit var gestureDetector: GestureDetector
-
     private var lastTapTime = 0L
-
     private var snackbarPopup: PopupWindow? = null
+    private val TWA_URL = "https://vcastplay-player.vercel.app/"
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -88,10 +85,9 @@ class MainActivity : AppCompatActivity() {
         sharedPrefs = SharedPrefsHelper(this)
         webView = binding.webView
         logoScreen = binding.logoScreen
-        //window.setFormat(PixelFormat.TRANSLUCENT)
+     //   mediaCacheManager = MediaCacheManager(this)
 
         webViewAction()
-
         permissionHelper.requestPermissions(
             arrayOf(
                 android.Manifest.permission.CAMERA,
@@ -101,18 +97,17 @@ class MainActivity : AppCompatActivity() {
             ),
             object : PermissionHelper.PermissionCallback {
                 override fun onPermissionGranted() {
+                   // webViewAction()
+                   /* startTwa2()
+                    startDeviceDetailsLoop()
+                    logDeviceInfo()*/
+
                     Log.d("permissions", "All permissions granted")
 
-                    //Toast.makeText(this@MainActivity, "All permissions granted", Toast.LENGTH_SHORT).show()
                 }
 
                 override fun onPermissionDenied(deniedPermissions: List<String>) {
                     Log.d("permissions", "Permissions denied: $deniedPermissions")
-                    /* Toast.makeText(
-                         this@MainActivity,
-                         "Permissions denied: $deniedPermissions",
-                         Toast.LENGTH_SHORT
-                     ).show()*/
                 }
             }
         )
@@ -141,15 +136,22 @@ class MainActivity : AppCompatActivity() {
         }
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
 
+       //startTwa2()
 
-        gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+        /*gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onDoubleTap(e: MotionEvent): Boolean {
-                showExitSnackBar()
+                finish() // Closes the app
+
                 return true
             }
-        })
+        })*/
     }
+
 
     @SuppressLint("ClickableViewAccessibility")
     private fun webViewAction() {
@@ -199,7 +201,7 @@ class MainActivity : AppCompatActivity() {
         snackbarPopup?.apply {
             isClippingEnabled = true
             softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+            setBackgroundDrawable(Color.TRANSPARENT.toDrawable())
             animationStyle = android.R.style.Animation_Toast
 
             binding.snackbarAction.setOnClickListener {
@@ -240,6 +242,10 @@ class MainActivity : AppCompatActivity() {
             }, { error ->
                 Log.e("QbicControl", "shutdown failed: ${error.message}", error)
             })
+    }
+
+    private fun logDeviceInfo() {
+        Log.d("MainActivity", "Launching TWA with device info...")
     }
 
     private fun closePlayerApp() {
@@ -307,19 +313,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startDeviceDetailsLoop() {
-        deviceDetailsJob = lifecycleScope.launch {
-            while (isActive) {
-                val details = withContext(Dispatchers.IO) {
-                    getDeviceDetails(this@MainActivity, this@MainActivity)
+            deviceDetailsJob = CoroutineScope(Dispatchers.Default).launch {
+                while (isActive) {
+                    val details = withContext(Dispatchers.IO) {
+                        getDeviceDetails(this@MainActivity, this@MainActivity)
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        Log.d("DeviceDetails", details)
+                        binding.deviceDetails.text = details
+                    }
+
+                    delay(5000L)
                 }
 
-                withContext(Dispatchers.Main) {
-                    Log.d("DeviceDetails", details)
-                    binding.deviceDetails.text = details
-                }
-
-                delay(5000L)
-            }
         }
     }
 
@@ -329,13 +336,12 @@ class MainActivity : AppCompatActivity() {
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == 1001 && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            permissionHelper.handlePermissionsResult(requestCode, permissions, grantResults)
-        }
+        permissionHelper.handlePermissionsResult(requestCode, permissions, grantResults)
     }
 
+
     override fun onDestroy() {
-        webView.destroy()  // Avoid memory leaks
+      //  webView.destroy()  // Avoid memory leaks
         super.onDestroy()
     }
 
@@ -343,12 +349,12 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         ImmersiveUtil.call(window.decorView)
-        webView.evaluateJavascript("resumePlayback();", null)
+//        webView.evaluateJavascript("resumePlayback();", null)
     }
 
     override fun onPause() {
         super.onPause()
-        webView.evaluateJavascript("pausePlayback();", null)
+        //webView.evaluateJavascript("pausePlayback();", null)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -370,4 +376,33 @@ class MainActivity : AppCompatActivity() {
         }
         return super.onTouchEvent(event)
     }
+
+
+
+    private fun startTwa() {
+        val twaLauncher = TwaLauncher(this)
+        twaLauncher.launch(TWA_URL.toUri())
+    }
+
+    @SuppressLint("UseKtx")
+    private fun startTwa2() {
+        val builder = TrustedWebActivityIntentBuilder(TWA_URL.toUri())
+
+        val connection = object : CustomTabsServiceConnection() {
+            override fun onCustomTabsServiceConnected(name: ComponentName, client: CustomTabsClient) {
+                val session = client.newSession(null)
+                if (session != null) {
+                    val intent = builder.build(session).intent
+                    startActivity(intent)
+                } else {
+                    Log.e("TWA", "Failed to create Custom Tabs session.")
+                }
+            }
+
+            override fun onServiceDisconnected(name: ComponentName) {}
+        }
+
+        CustomTabsClient.bindCustomTabsService(this, "com.android.chrome", connection)
+    }
+
 }

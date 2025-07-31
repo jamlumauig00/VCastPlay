@@ -5,21 +5,32 @@ plugins {
 
 android {
     namespace = "ph.nyxsys.vcastplayv2"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "ph.nyxsys.vcastplayv2"
         minSdk = 24
         //noinspection OldTargetApi
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("C:/Users/jtlumauig/VCastPlay/vcastplay2025.jks")
+            storePassword = "vcastplay2025"
+            keyAlias = "vcastplay2025"
+            keyPassword = "vcastplay2025"
+        }
+    }
+
+
     buildTypes {
-        release {
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -79,11 +90,9 @@ dependencies {
 
     //for lottie
     implementation(libs.lottie.compose)
-   // implementation(libs.dotlottie.android)
+    implementation (libs.androidbrowserhelper)
+    implementation (libs.androidx.browser)
 
-
-
-
-
+    // implementation(libs.dotlottie.android)
 
 }
