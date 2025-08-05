@@ -1,6 +1,9 @@
+/**
+ * Created by Jam on 2025-08-05.
+ *
+ */
 package ph.nyxsys.vcastplayv2.Network
 
-// QbicDeviceService.kt
 import io.reactivex.Observable
 import io.reactivex.Single
 import okhttp3.MultipartBody

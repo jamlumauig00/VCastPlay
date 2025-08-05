@@ -1,3 +1,7 @@
+/**
+ * Created by Jam on 2025-08-05.
+ *
+ */
 package ph.nyxsys.vcastplayv2.Utils
 
 import android.Manifest
@@ -19,27 +23,14 @@ import android.net.ConnectivityManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
-import android.os.Handler
-import android.os.Looper
 import android.os.PowerManager
 import android.os.StatFs
 import android.provider.Settings
 import android.util.Log
 import android.view.Display
 import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
-import androidx.lifecycle.lifecycleScope
-import com.google.android.gms.common.ConnectionResult
-import com.google.android.gms.common.GoogleApiAvailability
-import com.google.android.gms.location.LocationCallback
-import com.google.android.gms.location.LocationRequest
-import com.google.android.gms.location.LocationResult
-import com.google.android.gms.location.LocationServices
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okio.IOException
 import org.json.JSONObject
@@ -47,7 +38,6 @@ import java.io.BufferedReader
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStreamReader
-import java.net.HttpURLConnection
 import java.net.NetworkInterface
 import java.net.URL
 import java.security.SecureRandom
@@ -400,23 +390,15 @@ object DeviceUtil {
         }
     }
 
-    fun getDisplayStatus2(context: Context): String {
-        val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
-        val displays = displayManager.displays
-        return displays.joinToString("\n") { display ->
-            "Display ${display.displayId}: ${display.name}, State: ${display.state}"
-        }
-    }
-
     fun isHdmiConnectedQbic(): Boolean {
         return try {
             val file = File("/sys/class/drm/card0-HDMI-A-1/status")
             if (file.exists()) {
                 val status = file.readText().trim()
-                Log.d("QbicHdmi", "HDMI DRM status: $status")
+             //   Log.d("QbicHdmi", "HDMI DRM status: $status")
                 status.equals("connected", ignoreCase = true)
             } else {
-                Log.w("QbicHdmi", "HDMI status file does not exist")
+                //Log.w("QbicHdmi", "HDMI status file does not exist")
                 false
             }
         } catch (e: Exception) {
@@ -441,9 +423,7 @@ object DeviceUtil {
         val display = displayManager?.getDisplay(Display.DEFAULT_DISPLAY)
 
         val isDisplayAsleep = display?.state != Display.STATE_ON
-        Log.d("Monitor", "${isScreenOff || isDisplayAsleep}")
-
-
+       // Log.d("Monitor", "${isScreenOff || isDisplayAsleep}")
 
         return isScreenOff || isDisplayAsleep
     }

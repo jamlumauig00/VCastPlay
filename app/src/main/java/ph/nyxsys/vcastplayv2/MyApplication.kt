@@ -1,3 +1,7 @@
+/**
+ * Created by Jam on 2025-08-05.
+ *
+ */
 package ph.nyxsys.vcastplayv2
 
 import android.annotation.SuppressLint
@@ -8,7 +12,6 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
 import android.view.View
-import com.google.firebase.FirebaseApp
 import ph.nyxsys.vcastplayv2.Utils.ScreenStateReceiver
 
 class MyApplication : Application() {
@@ -17,7 +20,6 @@ class MyApplication : Application() {
     @SuppressLint("ObsoleteSdkInt")
     override fun onCreate() {
         super.onCreate()
-        FirebaseApp.initializeApp(this)
 
         // Register the screen state receiver globally
         screenStateReceiver = ScreenStateReceiver()
@@ -54,7 +56,6 @@ class MyApplication : Application() {
         }
 
     }
-
 
     override fun onTerminate() {
         super.onTerminate()

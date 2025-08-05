@@ -1,3 +1,7 @@
+/**
+ * Created by Jam on 2025-08-05.
+ *
+ */
 package ph.nyxsys.vcastplayv2.Helper
 
 import android.content.Context

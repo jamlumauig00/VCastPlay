@@ -1,19 +1,16 @@
+/**
+ * Created by Jam on 2025-08-05.
+ *
+ */
 package ph.nyxsys.vcastplayv2
 
 import android.annotation.SuppressLint
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.WindowManager
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import com.bumptech.glide.Glide
-import ph.nyxsys.vcastplayv2.databinding.ActivityMainBinding
 import ph.nyxsys.vcastplayv2.databinding.ActivitySplashBinding
+import androidx.core.net.toUri
 
 @SuppressLint("CustomSplashScreen")
 class SplashActivity : AppCompatActivity() {
@@ -31,7 +28,7 @@ class SplashActivity : AppCompatActivity() {
         )
         supportActionBar?.hide()
 
-        val videoUri = Uri.parse("android.resource://${packageName}/${R.raw.vcast_high_res2}")
+        val videoUri = "android.resource://${packageName}/${R.raw.vcast_high_res2}".toUri()
         binding.splashGif.setVideoURI(videoUri)
 
         binding.splashGif.setOnCompletionListener {
