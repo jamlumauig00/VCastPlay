@@ -5,13 +5,20 @@
 package ph.nyxsys.vcastplayv2.Webview
 
 import android.annotation.SuppressLint
+import android.content.Context
+import android.util.Log
 import android.view.View
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
+import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebViewClientCompat
+import java.io.File
 
 object WebViewConfigurator {
     @SuppressLint("SetJavaScriptEnabled")
-    fun configure(webView: WebView) {
+    fun configure(webView: WebView, context: Context) {
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -28,8 +35,12 @@ object WebViewConfigurator {
             setSupportMultipleWindows(false)
             cacheMode = WebSettings.LOAD_NO_CACHE
             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+
         }
 
         webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+
     }
 }
+
+

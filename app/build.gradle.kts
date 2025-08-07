@@ -65,6 +65,7 @@ dependencies {
     implementation(libs.firebase.database.ktx)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.firebase.database)
+    implementation(libs.androidx.webkit)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -93,6 +94,9 @@ dependencies {
     implementation (libs.androidbrowserhelper)
     implementation (libs.androidx.browser)
 
+
+    implementation(libs.nanohttpd)
+    implementation(libs.androidx.webkit.v1100)
     // implementation(libs.dotlottie.android)
 
 }

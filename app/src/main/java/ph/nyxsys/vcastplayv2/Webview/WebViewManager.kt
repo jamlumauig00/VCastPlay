@@ -17,14 +17,15 @@ import java.io.File
 class WebViewManager(
     private val context: Context,
     private val webView: WebView,
-    private val deviceDetails: String
+    private val deviceDetails: String,
+    val port: Int
 ) {
 
     private val downloadHelper = DownloadHelper(context)
     private val logHelper = LogHelper(context)
 
     fun setupWebView() {
-        WebViewConfigurator.configure(webView)
+        WebViewConfigurator.configure(webView, context)
         WebView.setWebContentsDebuggingEnabled(true)
 
         webView.addJavascriptInterface(
@@ -32,7 +33,7 @@ class WebViewManager(
                 context,
                 deviceDetails,
                 logHelper,
-                webView,
+                webView, port,
                 downloadHelper
             ), "AndroidBridge"
         )
@@ -44,8 +45,8 @@ class WebViewManager(
         }, "Android")
 
         webView.webChromeClient = WebChromeClientImpl { showWeb() }
-        webView.webViewClient =
-            WebViewClientImpl(context, webView, deviceDetails) { showWeb() }
+        webView.webViewClient = WebViewClientImpl(context, webView, deviceDetails) { showWeb() }
+
     }
 
     fun loadUrl(url: String) {

@@ -6,22 +6,33 @@ package ph.nyxsys.vcastplayv2
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.net.http.SslError
 import android.os.Bundle
 import android.util.Log
 import android.view.*
+import android.webkit.SslErrorHandler
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
+import androidx.webkit.WebViewAssetLoader
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.*
 import ph.nyxsys.vcastplayv2.Helper.PermissionHelper
 import ph.nyxsys.vcastplayv2.Helper.SharedPrefsHelper
 import ph.nyxsys.vcastplayv2.Network.ApiClient
+import ph.nyxsys.vcastplayv2.Network.LocalMediaServer
+import ph.nyxsys.vcastplayv2.Network.MediaServerManager
 import ph.nyxsys.vcastplayv2.Network.QBICShutdown
 import ph.nyxsys.vcastplayv2.Utils.*
 import ph.nyxsys.vcastplayv2.Webview.WebViewConfigUtil
 import ph.nyxsys.vcastplayv2.Webview.WebViewManager
 import ph.nyxsys.vcastplayv2.databinding.ActivityMainBinding
+import java.io.File
+import java.net.BindException
 
 enum class SwitchAction {
     CLOSE, OPEN, SHUTDOWN, REOPEN, RESTART
@@ -35,6 +46,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var webViewManager: WebViewManager
     private lateinit var pollingManager: DevicePollingManager
 
+    private var port = 8080
+    private lateinit var server: LocalMediaServer
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -45,6 +59,20 @@ class MainActivity : AppCompatActivity() {
         bindSwitchActions()
         saveSampleCache()
         requestPermissionsAndInit()
+
+        MediaServerManager.start(this)
+
+        while (true) {
+            try {
+                server = LocalMediaServer(this, port)
+                server.start()
+                Log.i("MediaServer", "Started on port $port")
+                break
+            } catch (e: BindException) {
+                Log.w("MediaServer", "Port $port in use, trying next")
+                port++
+            }
+        }
     }
 
     private fun initSystemSettings() {
@@ -101,7 +129,46 @@ class MainActivity : AppCompatActivity() {
         CoroutineScope(Dispatchers.IO).launch {
             val deviceDetails = DeviceUtil.getDeviceDetails(this@MainActivity, this@MainActivity)
             withContext(Dispatchers.Main) {
-                webViewManager = WebViewManager(this@MainActivity, webView, deviceDetails)
+                webViewManager = WebViewManager(this@MainActivity, webView, deviceDetails,port)
+
+                val assetLoader = WebViewAssetLoader.Builder()
+                    .addPathHandler(
+                        "/medias/",
+                        WebViewAssetLoader.InternalStoragePathHandler(this@MainActivity, File(this@MainActivity.filesDir, "medias"))
+                    )
+                    .build()
+
+                webView.webViewClient = object : WebViewClient() {
+
+                    override fun shouldInterceptRequest(
+                        view: WebView?,
+                        request: WebResourceRequest
+                    ): WebResourceResponse? {
+                        return assetLoader.shouldInterceptRequest(request.url)
+                    }
+
+                    override fun onReceivedSslError(
+                        view: WebView,
+                        handler: SslErrorHandler,
+                        error: SslError
+                    ) {
+                        Log.e("WebView", "SSL Error received: ${error.toString()}")
+
+                        // PROCEED only if you're sure it's safe for dev
+                        // handler.proceed() // ⚠️ Not recommended for production
+                        handler.cancel() // Safe default behavior
+                    }
+
+                    override fun onReceivedError(
+                        view: WebView,
+                        request: WebResourceRequest,
+                        error: WebResourceError
+                    ) {
+                        Log.e("WebView", "WebResourceError: ${error.description}")
+                        super.onReceivedError(view, request, error)
+                    }
+                }
+
                 webViewManager.setupWebView()
                 webViewManager.loadUrl("https://vcastplay-player.vercel.app/")
             }
@@ -185,4 +252,10 @@ class MainActivity : AppCompatActivity() {
         super.onWindowFocusChanged(hasFocus)
         if (hasFocus) ImmersiveUtil.call(window.decorView)
     }
+
+    override fun onDestroy() {
+        MediaServerManager.server?.stop()
+        super.onDestroy()
+    }
+
 }

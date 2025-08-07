@@ -33,10 +33,15 @@ class DownloadHelper(private val context: Context) {
     fun downloadToLocalStorage(url: String, fileName: String) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val folder = File(context.getExternalFilesDir(null), "vcastplay 2.0/assets/medias")
-                if (!folder.exists()) folder.mkdirs()
+               // val folder = File(context.getExternalFilesDir(null), "vcastplay 2.0/assets/medias")
+               // val folder = File(context.filesDir, "medias")
 
-                val file = File(folder, fileName)
+                val storageDir = File(context.filesDir, "medias")
+                //val file = File(storageDir, filename)
+
+                if (!storageDir.exists()) storageDir.mkdirs()
+
+                val file = File(storageDir, fileName)
 
                 val connection = URL(url).openConnection()
                 connection.connect()
@@ -74,6 +79,7 @@ class DownloadHelper(private val context: Context) {
                 output.close()
 
                 logDownloadStatus("✅ Downloaded: $fileName → ${file.absolutePath}")
+
             } catch (e: Exception) {
                 logDownloadStatus("❌ Failed to download $fileName\nError: ${e.message}")
             }
@@ -102,8 +108,13 @@ class DownloadHelper(private val context: Context) {
     }
 
     fun areAllFilesDownloaded(context: Context, jsonString: String): Boolean {
-        val mediaFolder = File(context.getExternalFilesDir(null), "vcastplay 2.0/assets/medias")
-        if (!mediaFolder.exists()) mediaFolder.mkdirs()
+       // val mediaFolder = File(context.getExternalFilesDir(null), "vcastplay 2.0/assets/medias")
+
+        val storageDir = File(context.filesDir, "medias")
+
+        //val mediaFolder = File(context.filesDir, "medias")
+
+        if (!storageDir.exists()) storageDir.mkdirs()
 
         return try {
             val playlist = JSONObject(jsonString).getJSONArray("playlist")
@@ -112,7 +123,7 @@ class DownloadHelper(private val context: Context) {
                 val item = playlist.getJSONObject(i)
                 val url = item.getString("link").trim()
                 val fileName = url.toUri().lastPathSegment ?: continue
-                val localFile = File(mediaFolder, fileName)
+                val localFile = File(storageDir, fileName)
 
                 // 1. File existence check
                 if (!localFile.exists()) {

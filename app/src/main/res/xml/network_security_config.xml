@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<network-security-config>
+<network-security-config xmlns:tools="http://schemas.android.com/tools">
+
+    <base-config cleartextTrafficPermitted="true" />
+
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">127.0.0.1</domain>
     </domain-config>
@@ -8,9 +11,16 @@
         <domain includeSubdomains="true">ip-api.com</domain>
     </domain-config>
 
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">172.29.80.1</domain>
+    </domain-config>
 
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">http://172.29.80.1:4200/</domain>
+        <domain includeSubdomains="true">vcastplay-player.vercel.app</domain>
+    </domain-config>
+
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">appassets.androidplatform.net</domain>
     </domain-config>
 
 </network-security-config>

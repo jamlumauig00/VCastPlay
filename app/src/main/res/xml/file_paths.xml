@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Internal app storage: /data/data/your.package.name/files/medias -->
+    <files-path
+        name="internal_medias"
+        path="medias/" />
+
+    <!-- External app-specific storage: /storage/emulated/0/Android/data/your.package.name/files/vcastplay 2.0/assets/medias/ -->
+    <external-files-path
+        name="external_medias"
+        path="vcastplay 2.0/assets/medias/" />
+</paths>
